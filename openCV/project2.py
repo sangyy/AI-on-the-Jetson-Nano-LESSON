@@ -11,8 +11,9 @@ heightImg =640
 
 #cap.set(10,150)
 img1 = cv2.imread("Resources/1.jpg")
+# img2 = img1
 img2 = cv2.imread("Resources/paper.jpg")
-
+# img1 = img2
 def preProcessing(img):
     imgGray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
     imgBlur = cv2.GaussianBlur(imgGray,(5,5),1)
@@ -29,7 +30,7 @@ def getContours(img):
     for cnt in contours:
         area = cv2.contourArea(cnt)
         if area>5000:
-            #cv2.drawContours(imgContour, cnt, -1, (255, 0, 0), 3)
+            # cv2.drawContours(imgContour, cnt, -1, (255, 0, 0), 3)
             peri = cv2.arcLength(cnt,True)
             approx = cv2.approxPolyDP(cnt,0.02*peri,True)
             if area >maxArea and len(approx) == 4:
@@ -39,26 +40,35 @@ def getContours(img):
     return biggest
 
 def reorder (myPoints):
+    print("before",myPoints)
     myPoints = myPoints.reshape((4,2))
+    print("reshape",myPoints)
     myPointsNew = np.zeros((4,1,2),np.int32)
+    print("zero",myPointsNew)
     add = myPoints.sum(1)
-    #print("add", add)
+    print("add", add)
+    # x+y的合，最小的点是左上角，最大值的点是右下角
     myPointsNew[0] = myPoints[np.argmin(add)]
     myPointsNew[3] = myPoints[np.argmax(add)]
     diff = np.diff(myPoints,axis=1)
+    print("diff",diff)
+    # y-x的差值，最小为负数的点是右上角，最大正值的点是左下角
     myPointsNew[1]= myPoints[np.argmin(diff)]
     myPointsNew[2] = myPoints[np.argmax(diff)]
-    #print("NewPoints",myPointsNew)
+    print("NewPoints",myPointsNew)
     return myPointsNew
 
 def getWarp(img,biggest):
+    print("approx",biggest)
     biggest = reorder(biggest)
     pts1 = np.float32(biggest)
     pts2 = np.float32([[0, 0], [widthImg, 0], [0, heightImg], [widthImg, heightImg]])
+    # pts2 = np.float32([[widthImg, 0], [0, 0], [0, heightImg], [widthImg, heightImg]])
     matrix = cv2.getPerspectiveTransform(pts1, pts2)
     imgOutput = cv2.warpPerspective(img, matrix, (widthImg, heightImg))
 
     imgCropped = imgOutput[20:imgOutput.shape[0]-20,20:imgOutput.shape[1]-20]
+    # imgCropped = imgOutput
     imgCropped = cv2.resize(imgCropped,(widthImg,heightImg))
 
     return imgCropped
@@ -111,18 +121,19 @@ while True:
     biggest = getContours(imgThres)
     if biggest.size !=0:
         imgWarped=getWarp(img,biggest)
-        # imageArray = ([img,imgThres],
-        #           [imgContour,imgWarped])
-        imageArray = ([imgContour, imgWarped])
+        imageArray = ([img,imgThres],
+                  [imgContour,imgWarped])
+        # imageArray = ([imgContour, imgWarped])
+        cv2.imshow("img",img)
         cv2.imshow("ImageWarped", imgWarped)
     else:
-        # imageArray = ([img, imgThres],
-        #               [img, img])
-        imageArray = ([imgContour, img])
+        imageArray = ([img, imgThres],
+                      [img, img])
+        # imageArray = ([imgContour, img])
 
     stackedImages = stackImages(0.6,imageArray)
     cv2.imshow("WorkFlow", stackedImages)
-    cv2.waitKey(500)
+    cv2.waitKey(3000)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
